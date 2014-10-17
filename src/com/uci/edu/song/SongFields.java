@@ -1,5 +1,8 @@
 package com.uci.edu.song;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -7,6 +10,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.bson.BSONObject;
 
@@ -38,6 +42,7 @@ public class SongFields {
             String fHead = "data/output_"+dNow.getTime()+"_head.csv";;
             String fSummary = "data/output_"+dNow.getTime()+"_summary.csv";
             
+            int countSongs = 0;
                         
             Map<String, Integer> mapArtistTerm = new HashMap<String, Integer>();
             DBCollection coll = db.getCollection("artist_terms");
@@ -46,7 +51,36 @@ public class SongFields {
                 DBObject t = cursor.next();
                 mapArtistTerm.put((String) t.get("name"), (int) t.get("i")); 
             }
+            ArrayList<Integer> nonZeroTerms = new ArrayList<Integer>();
+            ArrayList<Integer> nonZeroGenres = new ArrayList<Integer>();
             
+            String line = null;
+    		BufferedReader br = null;
+    		String f = "data/output_1413242199949_summary_.csv";
+    		try{
+    			br = new BufferedReader (new InputStreamReader(new FileInputStream(f)));
+    			if((line = br.readLine())!= null){
+    				String[] token = line.split("\\,", -1);
+    				System.out.println("nz terms: " + token.length);
+    				for(int i = 0; i < token.length; i ++){
+    					int id = Integer.parseInt(token[i].substring(0, token[i].indexOf("[")));
+    					nonZeroTerms.add(id);
+    				}
+    			}
+    			if((line = br.readLine())!= null){
+    				String[] token = line.split("\\,", -1);
+    				System.out.println("nz genres: " + token.length);
+    				for(int i = 0; i < token.length; i++){
+    					int id = Integer.parseInt(token[i].substring(0, token[i].indexOf("[")));
+    					nonZeroGenres.add(id);
+    				}
+    			}
+    			br.close();
+    	    	br = null;
+    	    } catch (Exception e){
+    	    	e.printStackTrace();
+    	    } 
+    		
             Map<String, Integer> mapArtistGenres = new HashMap<String, Integer>();
             DBCollection collG = db.getCollection("artist_genres");
             DBCursor cursorG = collG.find();
@@ -69,7 +103,7 @@ public class SongFields {
             String nl = "\n";
             
             // String Input
-            String hInput = "fileid"+sp+"datesaved"+sp+"posttitle"+sp+"artist"+sp+"song"+sp;
+            String hInput = "fileid"+sp+"datesaved"+sp+"posttitle"+sp+"artist"+sp+"song"+sp+"result"+ sp;
             
             // String Artist
             List<String> aList = new ArrayList<String>();
@@ -93,15 +127,34 @@ public class SongFields {
             aList.add("artist_location:location");
             aList.add("artist_location:country");
             aList.add("artist_location:city");
-            
+            int countNonZeroTerms = 0, countNonZerogenres = 0, countZeroTerms = 0, countZeroGenres = 0;
             String hArtist = "";
             for(int i = 0; i< aList.size(); i++)
                 hArtist += aList.get(i) + sp;
-            for(int i = 0; i < mapArtistTerm.size(); i++)
-                hArtist += "t"+i + sp;
-            for(int i = 0; i < mapArtistGenres.size(); i++)
-                hArtist += "g"+i + sp;
-            
+            int current = 0;
+            StringBuilder zTermsStr = new StringBuilder();
+            for(int i = 0; i < mapArtistTerm.size(); i++){
+            	if(current >= nonZeroTerms.size() || i == nonZeroTerms.get(current)){
+            		hArtist += "t"+i + sp;
+            		current++;
+            		countNonZeroTerms++;
+            	} else{
+            		countZeroTerms++;
+            		zTermsStr.append(i + sp);
+            	}
+            }
+            current = 0;
+            StringBuilder zGenresStr = new StringBuilder();
+            for(int i = 0; i < mapArtistGenres.size(); i++){
+            	if(current >= nonZeroGenres.size() || i == nonZeroGenres.get(current)){
+            		hArtist += "g"+i + sp;
+            		current++;
+            		countNonZerogenres++;
+            	} else{
+            		countZeroGenres++;
+            		zGenresStr.append(i + sp);
+            	}
+            }
             List<String> sList = new ArrayList<String>();
             sList.add("id");
             sList.add("title");
@@ -133,25 +186,29 @@ public class SongFields {
             // Retrieve song
             DBCollection coll_artist = db.getCollection("all");
             DBCursor cursor1 = coll_artist.find();
+            int cInput = 0, cArtist = 0, cSong = 0;
+            
             while(cursor1 != null && cursor1.hasNext()){
+            	countSongs++;
                 DBObject obj = cursor1.next();
                 DBObject input = (DBObject) obj.get("input");
                 DBObject a = (DBObject) obj.get("artist");
                 DBObject s = (DBObject) obj.get("song");
                 
                 String aInput = input.get("fileid") + sp + input.get("datesaved") + sp + input.get("posttitle")
-                        + sp + input.get("artist") + sp + input.get("song") + sp;
+                        + sp + input.get("artist") + sp + input.get("song") + sp + obj.get("result") + sp;
                 
                 StringBuilder sba = new StringBuilder();    // string builder artist
                 StringBuilder sbs = new StringBuilder();    // string builder song
-                int cInput = 0, cArtist = 0, cSong = 0;
                 cInput++;
                 if(a != null){
                     cArtist++;
                     for(String key: aList){
                         if(key.contains(":")){
                             String[] keys = key.split(":");
-                            sba.append(((BSONObject)a.get(keys[0])).get(keys[1]) + sp);
+                            if(a.get(keys[0]) != null){
+                            	sba.append(((BSONObject)a.get(keys[0])).get(keys[1]) + sp);
+                            }
                         } else{
                             sba.append(a.get(key) + sp);
                         }
@@ -159,32 +216,57 @@ public class SongFields {
                     
                     int[] aTerms = new int[mapArtistTerm.size()];
                     BasicDBList e = (BasicDBList) a.get("terms");
-                    for(int i = 0; i < e.size(); i++){
-                        String t = (String) ((DBObject) e.get(i)).get("name");
-                        int index = mapArtistTerm.get(t);
-                        if(index >= 0 && index < aTerms.length){
-                            aTerms[index] = 1;
-                            countTerm[index]++;
-                        }
+                    if(e != null) {
+	                    for(int i = 0; i < e.size(); i++){
+	                    	DBObject tt = (DBObject) e.get(i);
+	                    	if(tt != null){
+		                        String t = (String) tt.get("name");
+		                        int index = mapArtistTerm.get(t);
+		                        if(index >= 0 && index < aTerms.length){
+		                            aTerms[index] = 1;
+		                            countTerm[index]++;
+		                        }
+	                    	}
+	                    }
                     }
-                    String termsStr = Arrays.toString(aTerms);
-                    termsStr = termsStr.substring(1, termsStr.length()-1).replace(" ", "").replace(",", sp);
-                    sba.append(termsStr + sp);
+                    //String termsStr = Arrays.toString(aTerms);
+                    //termsStr = termsStr.substring(1, termsStr.length()-1).replace(" ", "").replace(",", sp);
+                    StringBuilder termsStr = new StringBuilder();
+                    current = 0;
+                    for(int i = 0; i < aTerms.length; i++){
+                    	if(current >= nonZeroTerms.size() || i == nonZeroTerms.get(current)){
+                    		termsStr.append(aTerms[i] + sp);
+                    		current++;
+                    	} 
+                    }
+                    sba.append(termsStr.toString() + sp);
                     
+                    //System.out.println(mapArtistGenres.size());
                     int[] aGenres = new int[mapArtistGenres.size()];
                     BasicDBList g = (BasicDBList) a.get("genres");
-                    for(int i = 0; i < g.size(); i++){
-                        String t = (String) ((DBObject) g.get(i)).get("name");
-                        int index = mapArtistGenres.get(t);
-                        if(index >= 0 && index < aGenres.length){
-                            aGenres[index] = 1;
-                            countGenres[index]++;
-                        }
+                    if(g != null) {
+	                    for(int i = 0; i < g.size(); i++){
+	                        String t = (String) ((DBObject) g.get(i)).get("name");
+	                        if(mapArtistGenres.get(t) != null){
+		                        int index = mapArtistGenres.get(t);
+		                        if(index >= 0 && index < aGenres.length){
+		                            aGenres[index] = 1;
+		                            countGenres[index]++;
+		                        }
+	                        }
+	                    }
                     }
-                    String genresStr = Arrays.toString(aGenres);
-                    genresStr = genresStr.substring(1, genresStr.length()-1).replace(" ", "").replace(",", sp);
-                    
-                    sba.append(genresStr + sp);
+                    //String genresStr = Arrays.toString(aGenres);
+                    //genresStr = genresStr.substring(1, genresStr.length()-1).replace(" ", "").replace(",", sp);
+                    StringBuilder genresStr = new StringBuilder();
+                    current = 0;
+                    for(int i = 0; i < aGenres.length; i++){
+                    	if(current >= nonZeroGenres.size() || i == nonZeroGenres.get(current)){
+                    		genresStr.append(aGenres[i] + sp);
+                    		current++;
+                    	} 
+                    }
+                    sba.append(genresStr.toString() + sp);
                     
                     if(s != null){
                         cSong++;
@@ -200,9 +282,11 @@ public class SongFields {
                         BasicDBList st = (BasicDBList) s.get("song_type");
                         for(int i = 0; i < st.size(); i++){
                             String t = (String) st.get(i);
-                            int index = mapSongTypes.get(t);
-                            if(index >= 0 && index < sTypes.length)
-                                sTypes[index] = 1;
+                            if(mapSongTypes.get(t) != null){
+	                            int index = mapSongTypes.get(t);
+	                            if(index >= 0 && index < sTypes.length)
+	                                sTypes[index] = 1;
+                            }
                         }
                         String typeStr = Arrays.toString(sTypes);
                         typeStr = typeStr.substring(1, typeStr.length()-1).replace(" ", "").replace(",", sp);
@@ -210,11 +294,12 @@ public class SongFields {
                     }
                 }
                 
-                System.out.println(hInput + hArtist + hSong + nl);
-                System.out.println(aInput + sba.toString() + sbs.toString() + nl);
+                //System.out.println(hInput + hArtist + hSong + nl);
+                //System.out.println(aInput + sba.toString() + sbs.toString() + nl);
                 
                 
                 FunctionUtils.writeToFile(fOut, aInput + sba.toString() + sbs.toString() + nl, true);
+                System.out.println("write to file " + countSongs + ", result " + obj.get("result"));
             }    
             
             
@@ -222,18 +307,25 @@ public class SongFields {
             
             
             
-            String summary = ft.format(dNow) + nl + "non-zero terms: ";
+            String summary = ft.format(dNow) + nl + "non-zero terms ("+countNonZeroTerms+"): ";
             for(int i = 0; i < countTerm.length; i++)
                 if(countTerm[i] > 0)
                     summary += i + "["+countTerm[i]+"], ";
-            summary += nl + "non-zero genres: ";
+            summary += nl + "non-zero genres ("+countNonZerogenres+"): ";
             for(int i = 0; i < countGenres.length; i++)
                 if(countGenres[i] > 0)
                     summary += i + "["+countGenres[i]+"], ";
-                        
+            
+            summary += nl + "zero terms (" + countZeroTerms + "): " + zTermsStr.toString() 
+            		+ nl + "zero genres (" + countZeroGenres + "): " + zGenresStr.toString() 
+            		+ nl + "total songs input = " + cInput
+            		+ nl + "artist found = " + cArtist
+            		+ nl + "both artist and song found = " + cSong;
+            
             FunctionUtils.writeToFile(fHead, hInput + hArtist + hSong + nl, false);
             FunctionUtils.writeToFile(fSummary, summary + nl, false);
             
+            System.out.println(summary);
 //            DBCursor cursor1 = coll_artist.findOne();
 //            while(cursor1 != null && cursor1.hasNext()){
 //                DBObject t = cursor1.next();
