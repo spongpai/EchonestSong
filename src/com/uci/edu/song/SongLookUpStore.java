@@ -35,6 +35,9 @@ public class SongLookUpStore {
 	DB db;
 	private EchoNestAPI en;
 	
+	// NOT latest version ---> need to check null values of genres and terms and add song!!!
+	// I made a mistake during push files to git, the latest files were not commited T-T
+	
 	public SongLookUpStore() throws EchoNestException, UnknownHostException {
         en = new EchoNestAPI();
         en.setTraceSends(true);
