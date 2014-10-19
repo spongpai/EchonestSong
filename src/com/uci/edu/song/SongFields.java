@@ -38,7 +38,7 @@ public class SongFields {
             Date dNow = new Date();
             SimpleDateFormat ft = new SimpleDateFormat ("yyyy.MM.dd 'at' hh:mm:ss a zzz");
             
-            String fOut = "data/output_"+dNow.getTime()+".csv";;
+            String fOut = "data/output_"+dNow.getTime();;
             String fHead = "data/output_"+dNow.getTime()+"_head.csv";;
             String fSummary = "data/output_"+dNow.getTime()+"_summary.csv";
             
@@ -61,7 +61,7 @@ public class SongFields {
     			br = new BufferedReader (new InputStreamReader(new FileInputStream(f)));
     			if((line = br.readLine())!= null){
     				String[] token = line.split("\\,", -1);
-    				System.out.println("nz terms: " + token.length);
+    				//System.out.println("nz terms: " + token.length);
     				for(int i = 0; i < token.length; i ++){
     					int id = Integer.parseInt(token[i].substring(0, token[i].indexOf("[")));
     					nonZeroTerms.add(id);
@@ -69,7 +69,7 @@ public class SongFields {
     			}
     			if((line = br.readLine())!= null){
     				String[] token = line.split("\\,", -1);
-    				System.out.println("nz genres: " + token.length);
+    				//System.out.println("nz genres: " + token.length);
     				for(int i = 0; i < token.length; i++){
     					int id = Integer.parseInt(token[i].substring(0, token[i].indexOf("[")));
     					nonZeroGenres.add(id);
@@ -208,6 +208,8 @@ public class SongFields {
                             String[] keys = key.split(":");
                             if(a.get(keys[0]) != null){
                             	sba.append(((BSONObject)a.get(keys[0])).get(keys[1]) + sp);
+                            } else{
+                            	sba.append("null" + sp);
                             }
                         } else{
                             sba.append(a.get(key) + sp);
@@ -236,10 +238,11 @@ public class SongFields {
                     for(int i = 0; i < aTerms.length; i++){
                     	if(current >= nonZeroTerms.size() || i == nonZeroTerms.get(current)){
                     		termsStr.append(aTerms[i] + sp);
+                    		//System.out.println("i" + i + " " + aTerms[i] + sp);
                     		current++;
                     	} 
                     }
-                    sba.append(termsStr.toString() + sp);
+                    sba.append(termsStr.toString());
                     
                     //System.out.println(mapArtistGenres.size());
                     int[] aGenres = new int[mapArtistGenres.size()];
@@ -266,14 +269,18 @@ public class SongFields {
                     		current++;
                     	} 
                     }
-                    sba.append(genresStr.toString() + sp);
+                    sba.append(genresStr.toString());
                     
                     if(s != null){
                         cSong++;
                         for(String key: sList){
                             if(key.contains(":")){
                                 String[] keys = key.split(":");
-                                sbs.append(((BSONObject)s.get(keys[0])).get(keys[1]) + sp);
+                                if(s.get(keys[0]) != null){
+                                	sbs.append(((BSONObject)s.get(keys[0])).get(keys[1]) + sp);
+                                } else{
+                                	sbs.append("null" + sp);
+                                }
                             } else{
                                 sbs.append(s.get(key) + sp);
                             }
@@ -297,8 +304,8 @@ public class SongFields {
                 //System.out.println(hInput + hArtist + hSong + nl);
                 //System.out.println(aInput + sba.toString() + sbs.toString() + nl);
                 
-                
-                FunctionUtils.writeToFile(fOut, aInput + sba.toString() + sbs.toString() + nl, true);
+                int fileIndex = countSongs / 10000;
+                FunctionUtils.writeToFile(fOut + "_" + fileIndex + ".csv", aInput + sba.toString() + sbs.toString() + nl, true);
                 System.out.println("write to file " + countSongs + ", result " + obj.get("result"));
             }    
             
