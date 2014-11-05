@@ -41,12 +41,14 @@ public class SongLookUp {
 	MongoClient mongoClient;
 	DB db;
 	private EchoNestAPI en;
+	String colName;
 	
 	public SongLookUp() throws EchoNestException, UnknownHostException {
         en = new EchoNestAPI();
         en.setTraceSends(true);
         en.setTraceRecvs(false);
-        mongoClient = new MongoClient( "localhost" , 27017 );
+        String server = "emme.ics.uci.edu";
+        mongoClient = new MongoClient( server , 27017 );
 		db = mongoClient.getDB( "echonest" );
 		
         mapArtistTerm = new HashMap<String, Integer>();
@@ -54,6 +56,10 @@ public class SongLookUp {
         mapArtistGenre = new HashMap<String, Integer>();
         mapArtistGenre = getGenreMap();
     }
+	
+	public void setCollectionName(String col){
+		colName = col;
+	}
 	
 	public void writeToFile(String file, String text, boolean append){
 		try {
@@ -125,7 +131,7 @@ public class SongLookUp {
 		DBCursor cursor = coll.find();
 		while(cursor != null && cursor.hasNext()){
 			DBObject t = cursor.next();
-			mapArtistTerm.put((String) t.get("name"), (int) t.get("i")); 
+			mapArtistTerm.put((String) t.get("name"), (Integer) t.get("i")); 
 		}
 		return mapArtistTerm;
 	}
@@ -135,7 +141,7 @@ public class SongLookUp {
 		DBCursor cursor = coll.find();
 		while(cursor != null && cursor.hasNext()){
 			DBObject t = cursor.next();
-			mapArtistGenre.put((String) t.get("name"), (int) t.get("i")); 
+			mapArtistGenre.put((String) t.get("name"), (Integer) t.get("i")); 
 		}
 		return mapArtistGenre;
 	}

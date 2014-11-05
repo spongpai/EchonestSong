@@ -39,7 +39,6 @@ public class Term {
     public static void sortByWeight(List<Term> terms) {
         Collections.sort(terms, new Comparator<Term>() {
 
-            @Override
             public int compare(Term o1, Term o2) {
                 if (o1.getWeight() > o2.getWeight()) {
                     return 1;
@@ -57,7 +56,6 @@ public class Term {
     public static void sortByFrequency(List<Term> terms) {
         Collections.sort(terms, new Comparator<Term>() {
 
-            @Override
             public int compare(Term o1, Term o2) {
                 if (o1.getFrequency() > o2.getFrequency()) {
                     return 1;

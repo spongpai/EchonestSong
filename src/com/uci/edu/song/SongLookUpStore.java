@@ -34,7 +34,6 @@ public class SongLookUpStore {
 	MongoClient mongoClient;
 	DB db;
 	private EchoNestAPI en;
-	
 	// NOT latest version ---> need to check null values of genres and terms and add song!!!
 	// I made a mistake during push files to git, the latest files were not commited T-T
 	
@@ -42,8 +41,8 @@ public class SongLookUpStore {
         en = new EchoNestAPI();
         en.setTraceSends(true);
         en.setTraceRecvs(false);
-        mongoClient = new MongoClient( "emme.ics.uci.edu" , 27017 );
-        //mongoClient = new MongoClient( "localhost" , 27017 );
+        //mongoClient = new MongoClient( "emme.ics.uci.edu" , 27017 );
+        mongoClient = new MongoClient( "localhost" , 27017 );
 		db = mongoClient.getDB( "echonest" );
 		
         //mapArtistTerm = new HashMap<String, Integer>();
@@ -53,8 +52,7 @@ public class SongLookUpStore {
     }
 	
 	
-	
-	public void getTitleFromFile(String file){
+	public void getTitleFromFile(String file, int format){
 		String line = null;
 		BufferedReader br = null;
 		try{
@@ -66,9 +64,16 @@ public class SongLookUpStore {
 				if(token.length != 5){
 					FunctionUtils.writeToFile(file + "error", "["+token.length+"]" + line + "\n", true);
 				} else{
-					int id = Integer.parseInt(token[0]);
-					Music2 temp = new Music2(id, token[1], token[2], token[3], token[4]);
-					musicList.add(temp);
+					Music2 temp;
+					if(format == 1){
+						 temp = new Music2(Integer.parseInt(token[0]), token[1], token[2], token[3], token[4]);
+						musicList.add(temp);
+					}
+					else if(format == 2){
+						temp = new Music2(Integer.parseInt(token[1]), "", token[2], token[3], token[4]);
+						temp.setSSN(token[0]);
+						musicList.add(temp);
+					}
 				}
 			}
 			br.close();
@@ -78,7 +83,7 @@ public class SongLookUpStore {
 	    } 
 	}
 	
-	public void getTitleFromFile(String file, int numLine){
+	public void getTitleFromFile(String file, int numLine, int format){
 		String line = null;
 		BufferedReader br = null;
 		try{
@@ -91,12 +96,20 @@ public class SongLookUpStore {
 				if(token.length != 5){
 					FunctionUtils.writeToFile(file + "error", "["+token.length+"]" + line + "\n", true);
 				} else{
-					int id = Integer.parseInt(token[0]);
 					if(token[3].isEmpty() || token[4].isEmpty()){
 						FunctionUtils.writeToFile(file + "error", "["+token.length+"]" + line + "\n", true);
 					} else{
-						Music2 temp = new Music2(id, token[1], token[2], token[3], token[4]);
-						musicList.add(temp);
+						Music2 temp;
+						if(format == 1){
+							 temp = new Music2(Integer.parseInt(token[0]), token[1], token[2], token[3], token[4]);
+							musicList.add(temp);
+						}
+						else if(format == 2){
+							temp = new Music2(Integer.parseInt(token[1]), "", token[2], token[3], token[4]);
+							temp.setSSN(token[0]);
+							musicList.add(temp);
+						}
+						
 					}
 				}
 				count++;
@@ -177,20 +190,21 @@ public class SongLookUpStore {
 		// Ing: 49PUSJRUWYLA9RXQN	1-3
 		// Jui: U3XEZ8IHU489DLLMD	4-6
 		// Ian: NDP4ZK4KOZVBGXJBN	7-9
-		int set = 9;
+		int set = 0;
 		int start = 0;
 		int countFound = 0;
 		int countTitleNotFound = 0;
 		int countArtistNotFound = 0;
 		int i = start;
-		String fileName = "data/"+"09010928_SongListened_" + set +".csv";
-		String resultFile = "data/"+"09010928_SongListened_JSON_"+ set +"_emme.csv";
-		String progress = "data/progress.txt";
+		String inputFileName = "complete2";
+		String fileName = "data/"+ inputFileName +".csv";
+		String resultFile = "data/"+ inputFileName + "_result_emme.json";
+		String progress = "data/"+ inputFileName + "_progress.txt";
 		SongLookUpStore lookup = null; 
-		
+		int format = 2;	//0: normal, 2: 2indexes (ssn and fieldID)
 		try {
 			lookup = new SongLookUpStore();
-			lookup.getTitleFromFile(fileName);
+			lookup.getTitleFromFile(fileName, format);
 			
 			int numSongs = lookup.musicList.size();
 			
@@ -200,12 +214,13 @@ public class SongLookUpStore {
 				BasicDBObject all = new BasicDBObject();
 				
 				BasicDBObject input = new BasicDBObject();
+				input.append("ssnumber", m.ssnumber);
 				input.append("fileid", m.fileid);
 				input.append("datesaved", m.date);
 				input.append("posttitle", m.postTitle);
 				input.append("artist", m.artist);
 				input.append("song", m.songTitle); 
-				DBCollection colInput = lookup.db.getCollection("inputs");
+				DBCollection colInput = lookup.db.getCollection("inputs_" + inputFileName);
 				colInput.insert(input);
 				all.append("input", input);
 				
@@ -214,20 +229,20 @@ public class SongLookUpStore {
 				Artist a = lookup.searchSongsByArtist(m.artist);
 				if(a != null){
 					result++;
-					DBCollection colArtist = lookup.db.getCollection("artists");
+					DBCollection colArtist = lookup.db.getCollection("artists_" + inputFileName);
 					colArtist.insert(new BasicDBObject(a.getData()));
 					all.append("artist", a.getData());
 					Song s = lookup.serchSongsByTitle(m.artist, m.songTitle);
 					if(s != null){
 						result++;
-						DBCollection colSong = lookup.db.getCollection("songs");
+						DBCollection colSong = lookup.db.getCollection("songs_" + inputFileName);
 						colSong.insert(new BasicDBObject(s.getData()));
 						all.append("song", s.getData());
 					}
 				}
 				all.append("result", result);
 				
-				DBCollection colAll = lookup.db.getCollection("all");
+				DBCollection colAll = lookup.db.getCollection("all_" + inputFileName);
 				colAll.insert(all);
 	        	System.out.print(i + " ");
 				//System.out.println("------------------------------------------------------------");

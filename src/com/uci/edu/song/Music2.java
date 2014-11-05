@@ -7,6 +7,8 @@ public class Music2 {
 	public String date;
 	public String postTitle, artist, songTitle;
 	public Song song;
+	public int[] termsArr, genresArr;
+	public String ssnumber;
 	
 	public Music2(){
 		
@@ -20,7 +22,9 @@ public class Music2 {
 		this.songTitle = songTitle;
 		this.song = null;
 	}
-	
+	public void setSSN(String ssn){
+		this.ssnumber = ssn;
+	}
 	public void setSong(Song s){
 		this.song = s;
 	}

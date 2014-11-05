@@ -24,26 +24,32 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 
-public class SongFields {
+public class SongFieldsRemoveNull {
     public static void main(String[] args){
         try {
 //            EchoNestAPI en = new EchoNestAPI();
 //            en.setTraceSends(true);
 //            en.setTraceRecvs(false);
 //            
-            MongoClient mongoClient = new MongoClient( "emme.ics.uci.edu" , 27017 );
+            MongoClient mongoClient = new MongoClient( "localhost" , 27017 );
             DB db = mongoClient.getDB( "echonest" );
             
             // OUTPUT FILES
+            String colExt = "complete2";
             Date dNow = new Date();
             SimpleDateFormat ft = new SimpleDateFormat ("yyyy.MM.dd 'at' hh:mm:ss a zzz");
             
-            String fOut = "data/output_"+dNow.getTime();;
-            String fHead = "data/output_"+dNow.getTime()+"_head.csv";;
-            String fSummary = "data/output_"+dNow.getTime()+"_summary.csv";
+            
+            // set output files name
+            String fOut = "data/output_" + colExt + "_" + dNow.getTime() + ".csv";
+            String fHead = "data/output_" + colExt + "_" + dNow.getTime() +"_head.csv";;
+            String fTerm = "data/output_" + colExt + "_" + dNow.getTime() +"_term.csv";;
+            String fGenre = "data/output_" + colExt + "_" + dNow.getTime() +"_genre.csv";;
+            String fSummary = "data/output_" + colExt + "_" + dNow.getTime() +"_summary.csv";
             
             int countSongs = 0;
-                        
+                    
+            // Create terms map from database
             Map<String, Integer> mapArtistTerm = new HashMap<String, Integer>();
             DBCollection coll = db.getCollection("artist_terms");
             DBCursor cursor = coll.find();
@@ -51,36 +57,10 @@ public class SongFields {
                 DBObject t = cursor.next();
                 mapArtistTerm.put((String) t.get("name"), (Integer) t.get("i")); 
             }
-            ArrayList<Integer> nonZeroTerms = new ArrayList<Integer>();
-            ArrayList<Integer> nonZeroGenres = new ArrayList<Integer>();
+            //ArrayList<Integer> nonZeroTerms = new ArrayList<Integer>();
+            //ArrayList<Integer> nonZeroGenres = new ArrayList<Integer>();
             
-            String line = null;
-    		BufferedReader br = null;
-    		String f = "data/output_1413242199949_summary_.csv";
-    		try{
-    			br = new BufferedReader (new InputStreamReader(new FileInputStream(f)));
-    			if((line = br.readLine())!= null){
-    				String[] token = line.split("\\,", -1);
-    				//System.out.println("nz terms: " + token.length);
-    				for(int i = 0; i < token.length; i ++){
-    					int id = Integer.parseInt(token[i].substring(0, token[i].indexOf("[")));
-    					nonZeroTerms.add(id);
-    				}
-    			}
-    			if((line = br.readLine())!= null){
-    				String[] token = line.split("\\,", -1);
-    				//System.out.println("nz genres: " + token.length);
-    				for(int i = 0; i < token.length; i++){
-    					int id = Integer.parseInt(token[i].substring(0, token[i].indexOf("[")));
-    					nonZeroGenres.add(id);
-    				}
-    			}
-    			br.close();
-    	    	br = null;
-    	    } catch (Exception e){
-    	    	e.printStackTrace();
-    	    } 
-    		
+            // Create genres map from database
             Map<String, Integer> mapArtistGenres = new HashMap<String, Integer>();
             DBCollection collG = db.getCollection("artist_genres");
             DBCursor cursorG = collG.find();
@@ -88,6 +68,15 @@ public class SongFields {
                 DBObject t = cursorG.next();
                 mapArtistGenres.put((String) t.get("name"), (Integer) t.get("i")); 
             }
+            
+            // create arrayList of song that store terms and genres features
+            ArrayList<int[]> songListTerms = new ArrayList<int[]>();
+            ArrayList<int[]> songListGenres = new ArrayList<int[]>();
+            ArrayList<String> songListID = new ArrayList<String>();
+            ArrayList<String> songListSSN = new ArrayList<String>();
+            
+            //HashMap<String, int[]> songListTerms = new HashMap<String, int[]>();
+            //HashMap<String, int[]> songListGenres = new HashMap<String, int[]>();
             
             int[] countTerm = new int[mapArtistTerm.size()];
             int[] countGenres = new int[mapArtistGenres.size()];
@@ -131,30 +120,7 @@ public class SongFields {
             String hArtist = "";
             for(int i = 0; i< aList.size(); i++)
                 hArtist += aList.get(i) + sp;
-            int current = 0;
-            StringBuilder zTermsStr = new StringBuilder();
-            for(int i = 0; i < mapArtistTerm.size(); i++){
-            	if(current >= nonZeroTerms.size() || i == nonZeroTerms.get(current)){
-            		hArtist += "t"+i + sp;
-            		current++;
-            		countNonZeroTerms++;
-            	} else{
-            		countZeroTerms++;
-            		zTermsStr.append(i + sp);
-            	}
-            }
-            current = 0;
-            StringBuilder zGenresStr = new StringBuilder();
-            for(int i = 0; i < mapArtistGenres.size(); i++){
-            	if(current >= nonZeroGenres.size() || i == nonZeroGenres.get(current)){
-            		hArtist += "g"+i + sp;
-            		current++;
-            		countNonZerogenres++;
-            	} else{
-            		countZeroGenres++;
-            		zGenresStr.append(i + sp);
-            	}
-            }
+            
             List<String> sList = new ArrayList<String>();
             sList.add("id");
             sList.add("title");
@@ -182,11 +148,18 @@ public class SongFields {
             for(String k: mapSongTypes.keySet())
                 hSong += "type:" + k + sp;
             
+            int format = 2;
+            String ssn = "";
+            if(format == 2){
+            	ssn = "SSNumber" + sp;
+            }
             
             // Retrieve song
-            DBCollection coll_artist = db.getCollection("all");
+            DBCollection coll_artist = db.getCollection("all_" +colExt);
             DBCursor cursor1 = coll_artist.find();
             int cInput = 0, cArtist = 0, cSong = 0;
+            
+            FunctionUtils.writeToFile(fOut, ssn + hInput + hArtist + hSong + nl, false);
             
             while(cursor1 != null && cursor1.hasNext()){
             	countSongs++;
@@ -195,12 +168,19 @@ public class SongFields {
                 DBObject a = (DBObject) obj.get("artist");
                 DBObject s = (DBObject) obj.get("song");
                 
-                String aInput = input.get("fileid") + sp + input.get("datesaved") + sp + input.get("posttitle")
+                String aInput = input.get("ssnumber") + sp + input.get("fileid") + sp + input.get("datesaved") + sp + input.get("posttitle")
                         + sp + input.get("artist") + sp + input.get("song") + sp + obj.get("result") + sp;
                 
                 StringBuilder sba = new StringBuilder();    // string builder artist
                 StringBuilder sbs = new StringBuilder();    // string builder song
-                cInput++;
+                songListID.add(cInput, String.valueOf(input.get("fileid")));
+                songListSSN.add(cInput,String.valueOf(input.get("ssnumber")));
+                int[] aGenres = new int[mapArtistGenres.size()];
+                int[] aTerms = new int[mapArtistTerm.size()];
+                songListTerms.add(cInput, aTerms);
+                songListGenres.add(cInput, aGenres);
+                																									
+                
                 if(a != null){
                     cArtist++;
                     for(String key: aList){
@@ -216,7 +196,7 @@ public class SongFields {
                         }
                     }
                     
-                    int[] aTerms = new int[mapArtistTerm.size()];
+                    // Count terms
                     BasicDBList e = (BasicDBList) a.get("terms");
                     if(e != null) {
 	                    for(int i = 0; i < e.size(); i++){
@@ -231,22 +211,12 @@ public class SongFields {
 	                    	}
 	                    }
                     }
-                    //String termsStr = Arrays.toString(aTerms);
-                    //termsStr = termsStr.substring(1, termsStr.length()-1).replace(" ", "").replace(",", sp);
-                    StringBuilder termsStr = new StringBuilder();
-                    current = 0;
-                    for(int i = 0; i < aTerms.length; i++){
-                    	if(current >= nonZeroTerms.size() || i == nonZeroTerms.get(current)){
-                    		termsStr.append(aTerms[i] + sp);
-                    		//System.out.println("i" + i + " " + aTerms[i] + sp);
-                    		current++;
-                    	} 
-                    }
-                    sba.append(termsStr.toString());
+                    // update aTerms array
+                    songListTerms.add(cInput, aTerms);
+                    //songListTerms.put((String) input.get("fileid"), aTerms);
                     
-                    //System.out.println(mapArtistGenres.size());
-                    int[] aGenres = new int[mapArtistGenres.size()];
-                    BasicDBList g = (BasicDBList) a.get("genres");
+                    // Count genres
+                     BasicDBList g = (BasicDBList) a.get("genres");
                     if(g != null) {
 	                    for(int i = 0; i < g.size(); i++){
 	                        String t = (String) ((DBObject) g.get(i)).get("name");
@@ -259,17 +229,10 @@ public class SongFields {
 	                        }
 	                    }
                     }
-                    //String genresStr = Arrays.toString(aGenres);
-                    //genresStr = genresStr.substring(1, genresStr.length()-1).replace(" ", "").replace(",", sp);
-                    StringBuilder genresStr = new StringBuilder();
-                    current = 0;
-                    for(int i = 0; i < aGenres.length; i++){
-                    	if(current >= nonZeroGenres.size() || i == nonZeroGenres.get(current)){
-                    		genresStr.append(aGenres[i] + sp);
-                    		current++;
-                    	} 
-                    }
-                    sba.append(genresStr.toString());
+                    // update aGenres array
+                    songListGenres.add(cInput, aGenres);
+                    //songListGenres.put((String) input.get("fileid"), aGenres);
+                    
                     
                     if(s != null){
                         cSong++;
@@ -301,19 +264,70 @@ public class SongFields {
                     }
                 }
                 
-                //System.out.println(hInput + hArtist + hSong + nl);
-                //System.out.println(aInput + sba.toString() + sbs.toString() + nl);
-                
-                int fileIndex = countSongs / 10000;
-                FunctionUtils.writeToFile(fOut + "_" + fileIndex + ".csv", aInput + sba.toString() + sbs.toString() + nl, true);
+                FunctionUtils.writeToFile(fOut, aInput + sba.toString() + sbs.toString() + nl, true);
                 System.out.println("write to file " + countSongs + ", result " + obj.get("result"));
+                cInput++;
+                
             }    
             
+            // non zero terms header
+            StringBuilder nzTermsHeader = new StringBuilder();
+            nzTermsHeader.append(ssn + "fieldID" + sp);
+            for(int i = 0; i < mapArtistTerm.size(); i++){
+            	if(countTerm[i] != 0){
+            		nzTermsHeader.append("t" + i + sp);
+            	}
+            }
+            nzTermsHeader.append(nl);
             
+            // non zero genres header
+            StringBuilder nzGenresHeader = new StringBuilder();
+            nzGenresHeader.append(ssn + "fieldID" + sp);
+            for(int i = 0; i < mapArtistGenres.size(); i++){
+            	if(countGenres[i] != 0){
+            		nzGenresHeader.append("g" + i + sp);
+            	}
+            }
+            nzGenresHeader.append(nl);
             
+            // Generate terms and genres features and write to the files
+            StringBuilder termsStr = new StringBuilder();
+            StringBuilder genresStr = new StringBuilder();
+            for(int i = 0; i < songListID.size(); i++){
+            	
+            	// create (non-zero) terms string
+            	System.out.println( songListSSN.get(i) + sp + songListID.get(i)  + sp);
+            	
+            	if(format == 2){
+            		termsStr.append(songListSSN.get(i) + sp);
+            		genresStr.append(songListSSN.get(i) + sp);
+            	}
+            	
+            	termsStr.append(songListID.get(i) + sp);
+            	int[] temp = songListTerms.get(i);
+            	for(int j = 0; j < temp.length; j++){
+            		if(countTerm[j] != 0)
+            			termsStr.append(temp[j] + sp);
+            	}
+            	termsStr.append(nl);
+            	
+            	// create (non-zero) genres string
+            	if(format == 2)
+            		
+            	genresStr.append(songListID.get(i) + sp);
+            	int[] tempG = songListGenres.get(i);
+            	for(int j = 0; j < tempG.length; j++){
+            		if(countGenres[j] != 0)
+            			genresStr.append(tempG[j] + sp);
+            	}
+            	genresStr.append(nl);
+            }
             
-            
-            
+            // write terms and genres feature into a new file
+            FunctionUtils.writeToFile(fTerm, nzTermsHeader.toString() + termsStr.toString(), false);
+            FunctionUtils.writeToFile(fGenre, nzGenresHeader.toString() + genresStr.toString(), false);
+           
+           
             String summary = ft.format(dNow) + nl + "non-zero terms ("+countNonZeroTerms+"): ";
             for(int i = 0; i < countTerm.length; i++)
                 if(countTerm[i] > 0)
@@ -323,22 +337,16 @@ public class SongFields {
                 if(countGenres[i] > 0)
                     summary += i + "["+countGenres[i]+"], ";
             
-            summary += nl + "zero terms (" + countZeroTerms + "): " + zTermsStr.toString() 
-            		+ nl + "zero genres (" + countZeroGenres + "): " + zGenresStr.toString() 
+            summary += nl + "non-zero terms (" + countZeroTerms + "): " + nzTermsHeader.toString() 
+            		+ nl + "non-zero genres (" + countZeroGenres + "): " + nzGenresHeader.toString() 
             		+ nl + "total songs input = " + cInput
             		+ nl + "artist found = " + cArtist
             		+ nl + "both artist and song found = " + cSong;
             
-            FunctionUtils.writeToFile(fHead, hInput + hArtist + hSong + nl, false);
+            
             FunctionUtils.writeToFile(fSummary, summary + nl, false);
             
             System.out.println(summary);
-//            DBCursor cursor1 = coll_artist.findOne();
-//            while(cursor1 != null && cursor1.hasNext()){
-//                DBObject t = cursor1.next();
-//                t.get("song.song_discovery_rank");
-//                System.out.println(t.get("song").toString());
-//            }
             System.exit(0);
         } catch (Exception e){
             e.printStackTrace();
