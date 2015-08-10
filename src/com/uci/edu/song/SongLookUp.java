@@ -125,7 +125,7 @@ public class SongLookUp {
 		DBCursor cursor = coll.find();
 		while(cursor != null && cursor.hasNext()){
 			DBObject t = cursor.next();
-			mapArtistTerm.put((String) t.get("name"), (int) t.get("i")); 
+			mapArtistTerm.put((String) t.get("name"), (Integer) t.get("i")); 
 		}
 		return mapArtistTerm;
 	}
@@ -135,7 +135,7 @@ public class SongLookUp {
 		DBCursor cursor = coll.find();
 		while(cursor != null && cursor.hasNext()){
 			DBObject t = cursor.next();
-			mapArtistGenre.put((String) t.get("name"), (int) t.get("i")); 
+			mapArtistGenre.put((String) t.get("name"), (Integer) t.get("i")); 
 		}
 		return mapArtistGenre;
 	}

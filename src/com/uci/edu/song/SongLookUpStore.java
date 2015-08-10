@@ -42,7 +42,7 @@ public class SongLookUpStore {
         en = new EchoNestAPI();
         en.setTraceSends(true);
         en.setTraceRecvs(false);
-        mongoClient = new MongoClient( "emme.ics.uci.edu" , 27017 );
+        mongoClient = new MongoClient( "eventshop.ics.uci.edu" , 27017 );
         //mongoClient = new MongoClient( "localhost" , 27017 );
 		db = mongoClient.getDB( "echonest" );
 		
@@ -177,14 +177,15 @@ public class SongLookUpStore {
 		// Ing: 49PUSJRUWYLA9RXQN	1-3
 		// Jui: U3XEZ8IHU489DLLMD	4-6
 		// Ian: NDP4ZK4KOZVBGXJBN	7-9
-		int set = 9;
+		int set = 0;
 		int start = 0;
 		int countFound = 0;
 		int countTitleNotFound = 0;
 		int countArtistNotFound = 0;
 		int i = start;
-		String fileName = "data/"+"09010928_SongListened_" + set +".csv";
-		String resultFile = "data/"+"09010928_SongListened_JSON_"+ set +"_emme.csv";
+		String fName = "manual";
+		String fileName = "data/"+ fName +".csv";
+		String resultFile = "data/"+fName+"_emme.csv";
 		String progress = "data/progress.txt";
 		SongLookUpStore lookup = null; 
 		

@@ -31,7 +31,7 @@ public class SongFields {
 //            en.setTraceSends(true);
 //            en.setTraceRecvs(false);
 //            
-            MongoClient mongoClient = new MongoClient( "emme.ics.uci.edu" , 27017 );
+            MongoClient mongoClient = new MongoClient( "eventshop.ics.uci.edu" , 27017 );
             DB db = mongoClient.getDB( "echonest" );
             
             // OUTPUT FILES
@@ -49,14 +49,14 @@ public class SongFields {
             DBCursor cursor = coll.find();
             while(cursor != null && cursor.hasNext()){
                 DBObject t = cursor.next();
-                mapArtistTerm.put((String) t.get("name"), (int) t.get("i")); 
+                mapArtistTerm.put((String) t.get("name"), ((Integer) t.get("i"))); 
             }
             ArrayList<Integer> nonZeroTerms = new ArrayList<Integer>();
             ArrayList<Integer> nonZeroGenres = new ArrayList<Integer>();
             
             String line = null;
     		BufferedReader br = null;
-    		String f = "data/output_1413242199949_summary_.csv";
+    		String f = "data/output_manual_summary_.csv";
     		try{
     			br = new BufferedReader (new InputStreamReader(new FileInputStream(f)));
     			if((line = br.readLine())!= null){
@@ -86,7 +86,7 @@ public class SongFields {
             DBCursor cursorG = collG.find();
             while(cursorG != null && cursorG.hasNext()){
                 DBObject t = cursorG.next();
-                mapArtistGenres.put((String) t.get("name"), (int) t.get("i")); 
+                mapArtistGenres.put((String) t.get("name"), (Integer) t.get("i")); 
             }
             
             int[] countTerm = new int[mapArtistTerm.size()];
